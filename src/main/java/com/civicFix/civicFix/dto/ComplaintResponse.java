@@ -16,4 +16,7 @@ public class ComplaintResponse {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime resolvedAt;
+    private String municipalityName;
+    private String userName;
+    private String userPhone;
 }

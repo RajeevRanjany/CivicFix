@@ -1,124 +1,619 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CivicFix</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CivicFix — Report. Track. Resolve.</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .status-CREATED { background:#fef3c7; color:#92400e; }
+    .status-NO_MUNICIPALITY_FOUND { background:#fee2e2; color:#991b1b; }
+    .status-SENT_TO_MUNICIPALITY { background:#dbeafe; color:#1e40af; }
+    .status-FIXED { background:#d1fae5; color:#065f46; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .spinner { border:3px solid #e5e7eb; border-top-color:#3b82f6; border-radius:50%; width:20px; height:20px; animation:spin 0.7s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
 </head>
+<body class="bg-gray-50 min-h-screen">
 
-<body>
+<!-- NAV -->
+<nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+        <i class="fa-solid fa-city text-white text-sm"></i>
+      </div>
+      <span class="font-bold text-gray-900 text-lg">CivicFix</span>
+    </div>
+    <div id="navAuth" class="hidden items-center gap-3">
+      <span id="navPhone" class="text-sm text-gray-500"></span>
+      <button id="navDashLink" onclick="showPage('dashboard')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Dashboard</button>
+      <button id="navAdminLink" onclick="showPage('admin')" class="hidden text-sm text-purple-600 hover:text-purple-800 font-medium">
+        <i class="fa-solid fa-shield-halved mr-1"></i>Admin Panel
+      </button>
+      <button id="navReportBtn" onclick="showPage('report')" class="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700 transition">+ Report</button>
+      <button onclick="logout()" class="text-sm text-gray-400 hover:text-red-500 transition">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </div>
+</nav>
 
-<h2>CivicFix</h2>
+<div id="app" class="max-w-6xl mx-auto px-4 py-8">
 
-<h3>Login</h3>
+  <!-- LOGIN PAGE -->
+  <div id="page-login" class="fade-in max-w-md mx-auto">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-city text-white text-2xl"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-900">CivicFix</h1>
+      <p class="text-gray-500 mt-1">Report civic issues. Track resolutions.</p>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <div id="step-phone">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Enter your phone number</h2>
+        <div class="flex gap-2">
+          <input id="phone" type="tel" placeholder="+91 98765 43210"
+            class="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button onclick="sendOtp()" id="btnSendOtp"
+            class="bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition whitespace-nowrap">
+            Send OTP
+          </button>
+        </div>
+        <p id="otpMsg" class="text-xs text-gray-400 mt-2 hidden">OTP sent — check server console</p>
+      </div>
+      <div id="step-otp" class="hidden mt-4 pt-4 border-t border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800 mb-1">Enter OTP</h2>
+        <p class="text-sm text-gray-500 mb-4">6-digit code sent to <span id="otpPhone" class="font-medium text-gray-700"></span></p>
+        <div class="flex gap-2">
+          <input id="otp" type="text" maxlength="6" placeholder="• • • • • •"
+            class="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button onclick="verifyOtp()" id="btnVerify"
+            class="bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition">
+            Verify
+          </button>
+        </div>
+        <button onclick="resetLogin()" class="text-xs text-gray-400 mt-3 hover:text-gray-600">← Change number</button>
+      </div>
+    </div>
+  </div>
 
-<input type="text" id="phone" placeholder="Phone Number"/>
-<button onclick="sendOtp()">Send OTP</button>
+  <!-- DASHBOARD PAGE -->
+  <div id="page-dashboard" class="hidden fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900">My Complaints</h2>
+        <p class="text-sm text-gray-500 mt-0.5">Track the status of your reported issues</p>
+      </div>
+      <button onclick="showPage('report')"
+        class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2">
+        <i class="fa-solid fa-plus"></i> New Report
+      </button>
+    </div>
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <div id="statTotal" class="text-2xl font-bold text-gray-900">—</div>
+        <div class="text-xs text-gray-500 mt-1">Total</div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <div id="statPending" class="text-2xl font-bold text-yellow-600">—</div>
+        <div class="text-xs text-gray-500 mt-1">Pending</div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <div id="statFixed" class="text-2xl font-bold text-green-600">—</div>
+        <div class="text-xs text-gray-500 mt-1">Fixed</div>
+      </div>
+    </div>
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button onclick="filterComplaints('all')" data-filter="all"
+        class="filter-btn text-xs px-3 py-1.5 rounded-full border border-blue-600 bg-blue-600 text-white transition">All</button>
+      <button onclick="filterComplaints('CREATED')" data-filter="CREATED"
+        class="filter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition">Created</button>
+      <button onclick="filterComplaints('SENT_TO_MUNICIPALITY')" data-filter="SENT_TO_MUNICIPALITY"
+        class="filter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition">In Progress</button>
+      <button onclick="filterComplaints('FIXED')" data-filter="FIXED"
+        class="filter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition">Fixed</button>
+    </div>
+    <div id="complaintsList" class="space-y-4"></div>
+  </div>
 
-<br><br>
+  <!-- REPORT PAGE -->
+  <div id="page-report" class="hidden fade-in max-w-2xl mx-auto">
+    <div class="flex items-center gap-3 mb-6">
+      <button onclick="showPage('dashboard')" class="text-gray-400 hover:text-gray-600 transition">
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+      </button>
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900">Report an Issue</h2>
+        <p class="text-sm text-gray-500">Help improve your community</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Photo of the issue</label>
+        <div id="dropZone" onclick="document.getElementById('imageFile').click()"
+          class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+          <i class="fa-solid fa-camera text-3xl text-gray-300 mb-2"></i>
+          <p class="text-sm text-gray-500">Click to upload a photo</p>
+          <p class="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+        </div>
+        <input type="file" id="imageFile" accept="image/*" class="hidden" onchange="previewImage(event)" />
+        <div id="imagePreview" class="hidden mt-3">
+          <img id="previewImg" class="w-full max-h-48 object-cover rounded-xl border border-gray-200" />
+          <button onclick="clearImage()" class="text-xs text-red-400 mt-1 hover:text-red-600">× Remove photo</button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+        <textarea id="description" rows="3" placeholder="Describe the issue (e.g. Large pothole on main road near bus stop)"
+          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+        <div id="locationIdle" class="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+          <button onclick="getLocation()"
+            class="flex items-center gap-2 bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <i class="fa-solid fa-location-crosshairs"></i> Detect My Location
+          </button>
+          <span class="text-xs text-gray-400">or enter manually below</span>
+        </div>
+        <div id="locationStatus" class="hidden items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3 mt-2">
+          <div class="spinner"></div>
+          <span>Detecting your location...</span>
+        </div>
+        <div id="locationOk" class="hidden items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3 mt-2">
+          <i class="fa-solid fa-location-dot text-green-500"></i>
+          <span id="locationText">Location captured</span>
+          <button onclick="resetLocation()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">Change</button>
+        </div>
+        <div id="locationErr" class="hidden items-center gap-2 text-sm text-red-700 bg-red-50 rounded-xl px-4 py-3 mt-2">
+          <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
+          <span>Location access denied. Enter manually below.</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mt-2">
+          <input id="manualLat" type="number" step="any" placeholder="Latitude (e.g. 12.8985)"
+            class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            oninput="applyManualLocation()" />
+          <input id="manualLng" type="number" step="any" placeholder="Longitude (e.g. 77.6883)"
+            class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            oninput="applyManualLocation()" />
+        </div>
+      </div>
+      <button onclick="submitComplaint()" id="btnSubmit"
+        class="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-paper-plane"></i> Submit Report
+      </button>
+    </div>
+  </div>
 
-<input type="text" id="otp" placeholder="OTP"/>
-<button onclick="verifyOtp()">Verify OTP</button>
+  <!-- ADMIN PANEL -->
+  <div id="page-admin" class="hidden fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-purple-600"></i> Admin Panel
+        </h2>
+        <p class="text-sm text-gray-500 mt-0.5">Manage and resolve civic complaints</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <div id="aStatTotal" class="text-2xl font-bold text-gray-900">—</div>
+        <div class="text-xs text-gray-500 mt-1">Total</div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <div id="aStatCreated" class="text-2xl font-bold text-yellow-600">—</div>
+        <div class="text-xs text-gray-500 mt-1">Created</div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <div id="aStatSent" class="text-2xl font-bold text-blue-600">—</div>
+        <div class="text-xs text-gray-500 mt-1">In Progress</div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <div id="aStatFixed" class="text-2xl font-bold text-green-600">—</div>
+        <div class="text-xs text-gray-500 mt-1">Fixed</div>
+      </div>
+    </div>
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button onclick="adminFilter('all')" data-afilter="all"
+        class="afilter-btn text-xs px-3 py-1.5 rounded-full border border-blue-600 bg-blue-600 text-white transition">All</button>
+      <button onclick="adminFilter('CREATED')" data-afilter="CREATED"
+        class="afilter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition">Created</button>
+      <button onclick="adminFilter('SENT_TO_MUNICIPALITY')" data-afilter="SENT_TO_MUNICIPALITY"
+        class="afilter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition">In Progress</button>
+      <button onclick="adminFilter('NO_MUNICIPALITY_FOUND')" data-afilter="NO_MUNICIPALITY_FOUND"
+        class="afilter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition">No Municipality</button>
+      <button onclick="adminFilter('FIXED')" data-afilter="FIXED"
+        class="afilter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition">Fixed</button>
+    </div>
+    <div id="adminComplaintsList" class="space-y-4"></div>
+  </div>
 
-<br><br>
+</div>
 
-<h3>Report Complaint</h3>
-
-<input type="file" id="image"/>
-<br><br>
-
-<input type="text" id="description" placeholder="Description"/>
-<br><br>
-
-<button onclick="submitComplaint()">Submit Complaint</button>
+<!-- TOAST -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+  <div id="toastInner" class="px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white flex items-center gap-2 max-w-xs"></div>
+</div>
 
 <script>
+const API = '';
+let token = '';
+let latitude = null;
+let longitude = null;
+let allComplaints = [];
+let allAdminComplaints = [];
 
-    let token = "";
-    let latitude = 0;
-    let longitude = 0;
 
-    navigator.geolocation.getCurrentPosition(pos => {
-        latitude = pos.coords.latitude;
-        longitude = pos.coords.longitude;
-        console.log("Location:", latitude, longitude);
+window.onload = () => {
+  token = localStorage.getItem('cf_token') || '';
+  const phone = localStorage.getItem('cf_phone') || '';
+  const role = localStorage.getItem('cf_role') || 'USER';
+  if (token) {
+    document.getElementById('navPhone').textContent = phone;
+    document.getElementById('navAuth').classList.remove('hidden');
+    document.getElementById('navAuth').classList.add('flex');
+    setupNav(role);
+    const isAdmin = role === 'MUNICIPAL_ADMIN' || role === 'SUPER_ADMIN';
+    showPage(isAdmin ? 'admin' : 'dashboard');
+  } else {
+    showPage('login');
+  }
+};
+
+
+function setupNav(role) {
+  const isAdmin = role === 'MUNICIPAL_ADMIN' || role === 'SUPER_ADMIN';
+  document.getElementById('navAdminLink').classList.toggle('hidden', !isAdmin);
+  document.getElementById('navDashLink').classList.toggle('hidden', isAdmin);
+  document.getElementById('navReportBtn').classList.toggle('hidden', isAdmin);
+}
+
+function showPage(name) {
+  ['login','dashboard','report','admin'].forEach(p => {
+    document.getElementById('page-' + p).classList.add('hidden');
+  });
+  document.getElementById('page-' + name).classList.remove('hidden');
+  if (name === 'dashboard') loadComplaints();
+  if (name === 'admin') loadAdminComplaints();
+  if (name === 'report') resetLocation();
+}
+
+function logout() {
+  localStorage.removeItem('cf_token');
+  localStorage.removeItem('cf_phone');
+  localStorage.removeItem('cf_role');
+  token = '';
+  document.getElementById('navAuth').classList.add('hidden');
+  showPage('login');
+}
+
+
+async function sendOtp() {
+  const phone = document.getElementById('phone').value.trim();
+  if (!phone) { showToast('Enter a phone number', 'red'); return; }
+  const btn = document.getElementById('btnSendOtp');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await fetch(API + '/api/auth/send-otp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
     });
+    document.getElementById('otpPhone').textContent = phone;
+    document.getElementById('step-otp').classList.remove('hidden');
+    document.getElementById('otpMsg').classList.remove('hidden');
+    showToast('OTP sent — check server console', 'blue');
+  } catch(e) { showToast('Failed to send OTP', 'red'); }
+  btn.disabled = false; btn.textContent = 'Send OTP';
+}
 
-    async function sendOtp(){
+async function verifyOtp() {
+  const phone = document.getElementById('phone').value.trim();
+  const otp = document.getElementById('otp').value.trim();
+  if (!otp) { showToast('Enter the OTP', 'red'); return; }
+  const btn = document.getElementById('btnVerify');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await fetch(API + '/api/auth/verify-otp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp })
+    });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.message || 'Invalid OTP'); }
+    const data = await res.json();
+    token = data.token;
+    const role = data.role || 'USER';
+    localStorage.setItem('cf_token', token);
+    localStorage.setItem('cf_phone', phone);
+    localStorage.setItem('cf_role', role);
+    document.getElementById('navPhone').textContent = phone;
+    document.getElementById('navAuth').classList.remove('hidden');
+    document.getElementById('navAuth').classList.add('flex');
+    setupNav(role);
+    showToast('Welcome to CivicFix!', 'green');
+    const isAdmin = role === 'MUNICIPAL_ADMIN' || role === 'SUPER_ADMIN';
+    showPage(isAdmin ? 'admin' : 'dashboard');
+  } catch(e) { showToast(e.message, 'red'); }
+  btn.disabled = false; btn.textContent = 'Verify';
+}
 
-        const phone = document.getElementById("phone").value;
+function resetLogin() {
+  document.getElementById('step-otp').classList.add('hidden');
+  document.getElementById('otp').value = '';
+}
 
-        await fetch("http://localhost:8080/api/auth/send-otp",{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json"
-            },
-            body:JSON.stringify({
-                phone:phone
-            })
-        });
-
-        alert("OTP sent");
+function getLocation() {
+  if (!navigator.geolocation) return;
+  document.getElementById('locationIdle').classList.add('hidden');
+  document.getElementById('locationStatus').classList.remove('hidden');
+  document.getElementById('locationStatus').classList.add('flex');
+  document.getElementById('locationOk').classList.add('hidden');
+  document.getElementById('locationErr').classList.add('hidden');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      latitude = pos.coords.latitude;
+      longitude = pos.coords.longitude;
+      document.getElementById('locationStatus').classList.add('hidden');
+      document.getElementById('locationOk').classList.remove('hidden');
+      document.getElementById('locationOk').classList.add('flex');
+      document.getElementById('locationText').textContent = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+      document.getElementById('manualLat').value = latitude;
+      document.getElementById('manualLng').value = longitude;
+    },
+    () => {
+      document.getElementById('locationStatus').classList.add('hidden');
+      document.getElementById('locationErr').classList.remove('hidden');
+      document.getElementById('locationErr').classList.add('flex');
+      document.getElementById('locationIdle').classList.remove('hidden');
     }
+  );
+}
 
-    async function verifyOtp(){
+function applyManualLocation() {
+  const lat = parseFloat(document.getElementById('manualLat').value);
+  const lng = parseFloat(document.getElementById('manualLng').value);
+  if (!isNaN(lat) && !isNaN(lng)) {
+    latitude = lat; longitude = lng;
+    document.getElementById('locationOk').classList.remove('hidden');
+    document.getElementById('locationOk').classList.add('flex');
+    document.getElementById('locationText').textContent = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+  }
+}
 
-        const phone = document.getElementById("phone").value;
-        const otp = document.getElementById("otp").value;
+function resetLocation() {
+  latitude = null; longitude = null;
+  document.getElementById('locationOk').classList.add('hidden');
+  document.getElementById('locationIdle').classList.remove('hidden');
+  document.getElementById('manualLat').value = '';
+  document.getElementById('manualLng').value = '';
+}
 
-        const res = await fetch("http://localhost:8080/api/auth/verify-otp",{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json"
-            },
-            body:JSON.stringify({
-                phone:phone,
-                otp:otp
-            })
-        });
+// ── CITIZEN COMPLAINTS ────────────────────────────────
+async function loadComplaints() {
+  document.getElementById('complaintsList').innerHTML =
+    '<div class="text-center py-12 text-gray-400"><div class="spinner mx-auto mb-3"></div><p class="text-sm">Loading...</p></div>';
+  try {
+    const res = await fetch(API + '/api/complaints/my', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error();
+    allComplaints = await res.json();
+    document.getElementById('statTotal').textContent = allComplaints.length;
+    document.getElementById('statPending').textContent = allComplaints.filter(c => c.status !== 'FIXED').length;
+    document.getElementById('statFixed').textContent = allComplaints.filter(c => c.status === 'FIXED').length;
+    renderComplaints(allComplaints);
+  } catch(e) {
+    document.getElementById('complaintsList').innerHTML =
+      '<div class="text-center py-12 text-gray-400"><p class="text-sm">Could not load complaints</p></div>';
+  }
+}
 
-        const data = await res.json();
-        token = data.token;
+function filterComplaints(filter) {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.className = b.dataset.filter === filter
+      ? 'filter-btn text-xs px-3 py-1.5 rounded-full border border-blue-600 bg-blue-600 text-white transition'
+      : 'filter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition';
+  });
+  renderComplaints(filter === 'all' ? allComplaints : allComplaints.filter(c => c.status === filter));
+}
 
-        alert("Login successful");
-    }
+function renderComplaints(list) {
+  const el = document.getElementById('complaintsList');
+  if (!list.length) {
+    el.innerHTML = '<div class="text-center py-16 text-gray-400"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p class="text-sm">No complaints found</p></div>';
+    return;
+  }
+  el.innerHTML = list.map(c => `
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
+      <div class="flex gap-4 p-4">
+        ${c.imageUrl ? `<img src="${c.imageUrl}" class="w-24 h-24 object-cover rounded-xl flex-shrink-0 border border-gray-100" onerror="this.style.display='none'" />` : `<div class="w-24 h-24 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-image text-gray-300 text-2xl"></i></div>`}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <p class="text-sm font-medium text-gray-900">${escHtml(c.description || 'No description')}</p>
+            <span class="status-${c.status} text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap">${statusLabel(c.status)}</span>
+          </div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
+            ${c.municipalityName ? `<span><i class="fa-solid fa-building-columns mr-1"></i>${escHtml(c.municipalityName)}</span>` : ''}
+            <span><i class="fa-solid fa-location-dot mr-1"></i>${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}</span>
+            <span><i class="fa-regular fa-clock mr-1"></i>${formatDate(c.createdAt)}</span>
+            ${c.resolvedAt ? `<span class="text-green-600"><i class="fa-solid fa-check mr-1"></i>Fixed ${formatDate(c.resolvedAt)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
 
-    async function submitComplaint(){
+// ── REPORT ────────────────────────────────────────────
+function previewImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('imagePreview').classList.remove('hidden');
+    document.getElementById('dropZone').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+}
 
-        const fileInput = document.getElementById("image");
-        const description = document.getElementById("description").value;
+function clearImage() {
+  document.getElementById('imageFile').value = '';
+  document.getElementById('imagePreview').classList.add('hidden');
+  document.getElementById('dropZone').classList.remove('hidden');
+}
 
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
+async function submitComplaint() {
+  const fileInput = document.getElementById('imageFile');
+  const description = document.getElementById('description').value.trim();
+  if (!fileInput.files[0]) { showToast('Please attach a photo', 'red'); return; }
+  if (!description) { showToast('Please add a description', 'red'); return; }
+  if (latitude === null) { showToast('Please set your location', 'red'); return; }
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Uploading photo...';
+  try {
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    const uploadRes = await fetch(API + '/api/upload', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: formData
+    });
+    if (!uploadRes.ok) throw new Error('Image upload failed');
+    const { imageUrl } = await uploadRes.json();
+    btn.innerHTML = '<span class="spinner"></span> Submitting...';
+    const res = await fetch(API + '/api/complaints', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ imageUrl, latitude, longitude, description })
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Submission failed'); }
+    showToast('Complaint submitted!', 'green');
+    document.getElementById('description').value = '';
+    clearImage(); resetLocation();
+    setTimeout(() => showPage('dashboard'), 1200);
+  } catch(e) { showToast(e.message, 'red'); }
+  btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Report';
+}
 
-        const uploadRes = await fetch("http://localhost:8080/api/upload",{
-            method:"POST",
-            headers:{
-                "Authorization":"Bearer " + token
-            },
-            body:formData
-        });
+// ── ADMIN ─────────────────────────────────────────────
+async function loadAdminComplaints() {
+  document.getElementById('adminComplaintsList').innerHTML =
+    '<div class="text-center py-12 text-gray-400"><div class="spinner mx-auto mb-3"></div><p class="text-sm">Loading...</p></div>';
+  try {
+    const res = await fetch(API + '/api/complaints', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error();
+    allAdminComplaints = await res.json();
+    document.getElementById('aStatTotal').textContent = allAdminComplaints.length;
+    document.getElementById('aStatCreated').textContent = allAdminComplaints.filter(c => c.status === 'CREATED').length;
+    document.getElementById('aStatSent').textContent = allAdminComplaints.filter(c => c.status === 'SENT_TO_MUNICIPALITY').length;
+    document.getElementById('aStatFixed').textContent = allAdminComplaints.filter(c => c.status === 'FIXED').length;
+    renderAdminComplaints(allAdminComplaints);
+  } catch(e) {
+    document.getElementById('adminComplaintsList').innerHTML =
+      '<div class="text-center py-12 text-gray-400"><p class="text-sm">Could not load complaints</p></div>';
+  }
+}
 
-        const uploadData = await uploadRes.json();
-        const imageUrl = uploadData.imageUrl;
+function adminFilter(filter) {
+  document.querySelectorAll('.afilter-btn').forEach(b => {
+    b.className = b.dataset.afilter === filter
+      ? 'afilter-btn text-xs px-3 py-1.5 rounded-full border border-blue-600 bg-blue-600 text-white transition'
+      : 'afilter-btn text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 transition';
+  });
+  renderAdminComplaints(filter === 'all' ? allAdminComplaints : allAdminComplaints.filter(c => c.status === filter));
+}
 
-        await fetch("http://localhost:8080/api/complaints",{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json",
-                "Authorization":"Bearer " + token
-            },
-            body:JSON.stringify({
-                imageUrl:imageUrl,
-                latitude:latitude,
-                longitude:longitude,
-                description:description
-            })
-        });
+function renderAdminComplaints(list) {
+  const el = document.getElementById('adminComplaintsList');
+  if (!list.length) {
+    el.innerHTML = '<div class="text-center py-16 text-gray-400"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p class="text-sm">No complaints found</p></div>';
+    return;
+  }
+  const userId = getUserIdFromToken();
+  el.innerHTML = list.map(c => `
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition" id="card-${c.id}">
+      <div class="flex gap-4 p-4">
+        ${c.imageUrl ? `<img src="${c.imageUrl}" class="w-28 h-28 object-cover rounded-xl flex-shrink-0 border border-gray-100 cursor-pointer" onclick="window.open('${c.imageUrl}','_blank')" />` : `<div class="w-28 h-28 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-image text-gray-300 text-2xl"></i></div>`}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <p class="text-sm font-medium text-gray-900">${escHtml(c.description || 'No description')}</p>
+            <span class="status-${c.status} text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap">${statusLabel(c.status)}</span>
+          </div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-400">
+            <span><i class="fa-solid fa-user mr-1"></i>${escHtml(c.userPhone || 'Unknown')}</span>
+            ${c.municipalityName ? `<span><i class="fa-solid fa-building-columns mr-1"></i>${escHtml(c.municipalityName)}</span>` : '<span class="text-red-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>No municipality</span>'}
+            <span><i class="fa-solid fa-location-dot mr-1"></i>${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}</span>
+            <span><i class="fa-regular fa-clock mr-1"></i>${formatDate(c.createdAt)}</span>
+            ${c.resolvedAt ? `<span class="text-green-600"><i class="fa-solid fa-check mr-1"></i>Fixed ${formatDate(c.resolvedAt)}</span>` : ''}
+          </div>
+          ${c.status !== 'FIXED' ? `
+          <div class="mt-3">
+            <button onclick="markFixed(${c.id}, ${userId}, this)"
+              class="bg-green-600 text-white text-xs px-4 py-1.5 rounded-lg hover:bg-green-700 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Mark as Fixed
+            </button>
+          </div>` : `<div class="mt-3 text-xs text-green-600 font-medium"><i class="fa-solid fa-circle-check mr-1"></i>Resolved</div>`}
+        </div>
+      </div>
+    </div>`).join('');
+}
 
-        alert("Complaint submitted");
+async function markFixed(complaintId, adminId, btn) {
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Updating...';
+  try {
+    const res = await fetch(`${API}/api/complaints/${complaintId}/fix/${adminId}`, {
+      method: 'PUT', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed'); }
+    showToast('Marked as fixed!', 'green');
+    loadAdminComplaints();
+  } catch(e) {
+    showToast(e.message, 'red');
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Mark as Fixed';
+  }
+}
 
-    }
+function getUserIdFromToken() {
+  try { return JSON.parse(atob(token.split('.')[1])).sub; } catch { return null; }
+}
 
+// ── HELPERS ───────────────────────────────────────────
+function statusLabel(s) {
+  return { CREATED:'Created', NO_MUNICIPALITY_FOUND:'No Municipality', SENT_TO_MUNICIPALITY:'In Progress', FIXED:'Fixed' }[s] || s;
+}
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function showToast(msg, color) {
+  const colors = { green:'bg-green-600', red:'bg-red-500', blue:'bg-blue-600' };
+  const icons = { green:'fa-circle-check', red:'fa-circle-exclamation', blue:'fa-circle-info' };
+  const t = document.getElementById('toast');
+  const inner = document.getElementById('toastInner');
+  inner.className = `px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white flex items-center gap-2 max-w-xs ${colors[color]||'bg-gray-700'}`;
+  inner.innerHTML = `<i class="fa-solid ${icons[color]||'fa-info'}"></i> ${escHtml(msg)}`;
+  t.classList.remove('hidden');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.add('hidden'), 3500);
+}
 </script>
+
+<footer class="border-t border-gray-200 bg-white mt-12">
+  <div class="max-w-6xl mx-auto px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
+    <div class="flex items-center gap-2 text-gray-500 text-sm">
+      <div class="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+        <i class="fa-solid fa-city text-white text-xs"></i>
+      </div>
+      <span class="font-medium text-gray-700">CivicFix</span>
+      <span class="text-gray-300">·</span>
+      <span>Report. Track. Resolve.</span>
+    </div>
+    <p class="text-xs text-gray-400">© 2026 CivicFix. Making cities better, one complaint at a time.</p>
+  </div>
+</footer>
 
 </body>
 </html>

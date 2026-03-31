@@ -1,12 +1,14 @@
 package com.civicFix.civicFix.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OtpService {
@@ -26,7 +28,7 @@ public class OtpService {
                 Duration.ofMinutes(OTP_EXPIRY_MINUTES)
         );
 
-        System.out.println("OTP for " + phone + " is: " + otp);
+        log.info("OTP for {} is: {}", phone, otp);
 
         return otp;
     }
@@ -35,16 +37,11 @@ public class OtpService {
 
         String storedOtp = redisTemplate.opsForValue().get(OTP_PREFIX + phone);
 
-        if (storedOtp == null) {
+        if (storedOtp == null || !storedOtp.equals(otp)) {
             return false;
         }
 
-        if (!storedOtp.equals(otp)) {
-            return false;
-        }
-
-        redisTemplate.delete(OTP_PREFIX + phone); // one-time use
-
+        redisTemplate.delete(OTP_PREFIX + phone);
         return true;
     }
 }

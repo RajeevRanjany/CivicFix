@@ -10,4 +10,6 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     List<Complaint> findByUserIdAndCreatedAtAfter(Long userId, LocalDateTime time);
     List<Complaint> findByStatus(ComplaintStatus status);
+    List<Complaint> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<Complaint> findAllByOrderByCreatedAtDesc();
 }
